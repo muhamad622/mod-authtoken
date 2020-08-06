@@ -277,6 +277,23 @@ public class AuthTokenTest {
       .header("X-Okapi-Permissions", "[]")
       .header("X-Okapi-Module-Tokens", not(isEmptyString()))
       .extract().response();
+//    final String modTokens = r.getHeader("X-Okapi-Module-Tokens");
+//    JsonObject modtoks = new JsonObject(modTokens);
+//    String barToken = modtoks.getString("bar");
+
+    logger.info("Test with noLogin token and module permissions");
+    r = given()
+      .header("X-Okapi-Tenant", tenant)
+      .header("X-Okapi-Token", noLoginToken)
+      .header("X-Okapi-Url", "http://localhost:" + freePort)
+      .header("X-Okapi-Module-Permissions",
+        "{ \"bar\": [\"bar.first\",\"bar.second\"] }")
+      .get("/foo")
+      .then()
+      .statusCode(202)
+      .header("X-Okapi-Permissions", "[]")
+      .header("X-Okapi-Module-Tokens", not(isEmptyString()))
+      .extract().response();
     final String modTokens = r.getHeader("X-Okapi-Module-Tokens");
     JsonObject modtoks = new JsonObject(modTokens);
     String barToken = modtoks.getString("bar");
