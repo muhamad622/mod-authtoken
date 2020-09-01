@@ -80,6 +80,8 @@ public class MainVerticle extends AbstractVerticle {
   private List<AuthRoutingEntry> authRoutingEntryList;
 
   private Map<String, TokenCreator> clientTokenCreatorMap;
+  
+  private ResponseCache respCache = new ResponseCache();
 
   TokenCreator getTokenCreator() throws JOSEException {
     String keySetting = System.getProperty("jwt.signing.key");
@@ -411,6 +413,7 @@ public class MainVerticle extends AbstractVerticle {
 
   private void handleAuthorize(RoutingContext ctx) {
     logger.debug("Calling handleAuthorize for " + ctx.request().absoluteURI());
+    
     String requestId = ctx.request().headers().get(REQUESTID_HEADER);
     String userId = ctx.request().headers().get(USERID_HEADER);
     String tenant = ctx.request().headers().get(OKAPI_TENANT_HEADER);
@@ -544,6 +547,34 @@ public class MainVerticle extends AbstractVerticle {
 
     final String finalUserId = userId;
 
+    //CAM
+    String modPerms = ctx.request().headers().get(MODULE_PERMISSIONS_HEADER);
+    if(modPerms != null) {
+      String method = ctx.request().method().name();
+      String path = ctx.request().path();
+      JsonObject cachedResp = respCache.get(method, path, modPerms);
+      if(cachedResp != null) {
+        logger.info("using cached response: " + cachedResp.encode());
+        
+        String moduleTokens = cachedResp.getJsonObject("ModuleTokens").put("_", authToken).encode();
+        
+        ctx.response()
+          .setChunked(true)
+          .setStatusCode(202)
+          .putHeader(CONTENT_TYPE, "text/plain")
+          .putHeader(PERMISSIONS_HEADER, cachedResp.getString("Permissions"))
+          .putHeader(MODULE_TOKENS_HEADER, moduleTokens)
+          .putHeader("Authorization", "Bearer " + cachedResp.getString("Token"))
+          .putHeader(OKAPI_TOKEN_HEADER, cachedResp.getString("Token"));
+        if (finalUserId != null) {
+          ctx.response().putHeader(USERID_HEADER, finalUserId);
+        }
+        
+        ctx.response().end();
+        return;
+      }
+    }
+    
     //Check and see if we have any module permissions defined
     JsonArray extraPermissionsCandidate = getClaims(authToken).getJsonArray(EXTRA_PERMS);
     if (extraPermissionsCandidate == null) {
@@ -741,6 +772,22 @@ public class MainVerticle extends AbstractVerticle {
         return;
       }
 
+      if(moduleTokens.fieldNames().size() > 1) {
+        String method = ctx.request().method().name();
+        String path = ctx.request().path();
+        
+        JsonObject sansOriginal = moduleTokens.copy();
+        sansOriginal.remove("_");
+        
+        JsonObject toCache = new JsonObject()
+            .put("Token", token)
+            .put("Permissions", permissions.encode())
+            .put("ModuleTokens", sansOriginal);
+        
+        logger.info("Caching response: " + toCache.encode());
+        respCache.put(method, path, modPerms, toCache);
+      }
+      
       //Return header containing relevant permissions
       ctx.response()
               .setChunked(true)
