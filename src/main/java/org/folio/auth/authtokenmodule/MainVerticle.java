@@ -404,7 +404,7 @@ public class MainVerticle extends AbstractVerticle {
       .put("sub", "_AUTHZ_MODULE_")
       .put("tenant", tenant)
       .put("dummy", true)
-      .put(REQUEST_ID, (requestId == null || requestId.isEmpty()) ? "dummy" : requestId)
+//      .put(REQUEST_ID, (requestId == null || requestId.isEmpty()) ? "dummy" : requestId)
       .put(EXTRA_PERMS, perms);
     return tokenCreator.createJWTToken(tokenPayload.encode());
   }
@@ -478,7 +478,7 @@ public class MainVerticle extends AbstractVerticle {
                 .put("sub", UNDEFINED_USER_NAME + ctx.request().remoteAddress().toString() +
                         "__" + df.format(now))
                 .put("tenant", tenant)
-                .put(REQUEST_ID, requestId)
+//                .put(REQUEST_ID, requestId)
                 .put("dummy", true);
       } catch(Exception e) {
         endText(ctx, 500,  "Error creating dummy token: ", e);
@@ -575,7 +575,7 @@ public class MainVerticle extends AbstractVerticle {
         tokenPayload.put("tenant", tenant);
         tokenPayload.put("module", moduleName);
         tokenPayload.put(EXTRA_PERMS, permissionList);
-        tokenPayload.put(REQUEST_ID, requestId);
+//        tokenPayload.put(REQUEST_ID, requestId);
         tokenPayload.put("user_id", finalUserId);
         String moduleToken = null;
         try {
